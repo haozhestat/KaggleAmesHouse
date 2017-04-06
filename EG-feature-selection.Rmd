@@ -1,0 +1,142 @@
+---
+title: "Ames Housing Feature Selection"
+author: "Emily Goren"
+date: "4/6/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+set.seed(13)
+
+require(randomForest)
+require(xgboost)
+require(caret)
+require(Boruta)
+
+### Put directory of file location here
+dir <- '/Users/emilygoren/Documents/School/ISU/Classes/STAT602/Kaggle/'
+```
+
+# Data Cleaning
+
+```{r data}
+train <- read.csv(paste0(dir, "train.csv"))
+train <- subset(train, select = -Id) # Drop ID, useless for prediction.
+dim(train)
+str(train)
+summary(train)
+```
+
+Building on Andrew's observations: 
+
+  - Change MSSubClass to a factor.
+  - For numeric variables, replace \texttt{NA}'s with the median value.
+  - For factor variables, make NA's into their own factor level. Most of these are "not applicable"" so they'll likely be correlated with similar variables, e.g. garage area and garage quality.
+  - Change the two condition variables into binary indicators for each condition.
+  
+```{r data2}
+train$MSSubClass <- as.factor(train$MSSubClass)
+# Replace NA's.
+missing <- apply(train, 2, function(x) sum(is.na(x)))
+missing[missing > 0]
+missvars <- names(missing[missing > 0])
+str(subset(train, select = missvars))
+# Replace numeric missing values with median, add NA as a factor level otherwise
+for (i in 1:length(missvars)) {
+    thisvar <- train[ , missvars[i]]
+    if (is.numeric(thisvar))
+        thisvar[is.na(thisvar)] <-  median(thisvar, na.rm = TRUE)
+    if (is.factor(thisvar))
+        thisvar <- addNA(thisvar)
+    train[ , missvars[i]] <- thisvar
+}
+# Make indicators for conditions.
+cond1 <- data.frame(model.matrix(~ Condition1 + 0, data = train))
+names(cond1) <- sub(".*1", "", names(cond1))
+cond2 <- data.frame(model.matrix(~ Condition2 + 0, data = train))
+names(cond2) <- sub(".*2", "", names(cond2))
+idx <- names(cond1) %in% names(cond2)
+cond <- cond1
+cond[, idx] <- cond1[, idx] + cond2
+cond <- as.data.frame(ifelse(cond == 0, 0, 1))
+train <- subset(train, select = -c(Condition1, Condition2))
+train <- cbind(train, cond)
+```
+
+
+
+# Feature Importance in (untuned) Models
+
+## Random Forest
+```{r rf}
+fit.rf <- randomForest(SalePrice ~ ., data = train, importance = TRUE)
+imp.rf <- varImp(fit.rf)
+```
+
+## Linear Model
+```{r lm}
+fit.lm <- lm(SalePrice ~ ., data = train)
+imp.lm <- varImp(fit.lm)
+```
+
+## Boosted Tree
+```{r xgb}
+X <- subset(train, select = -SalePrice)
+fit.bst <- xgboost(data.matrix(X), train$SalePrice, nrounds = 200)
+imp.bst <- xgb.importance(model = fit.bst, feature_names = names(X))
+```
+
+
+## Boruta
+A feature selection method using random forests (see Kursa & Rudnicki, J Stat Software, 2010).
+```{r boruta}
+fit.bt <- Boruta(SalePrice ~ ., data = train)
+print(fit.bt)
+plot(fit.bt)
+```
+
+# Summary
+The plot below shows the (centered, scaled) importance ranking for features not rejected by Boruta. I am not sure if we should perform model tuning/selection on all of these features, or choose a subset to investigate interactions or higher order terms. I also did not center and scale the design matrixes here.
+
+```{r ranks}
+# Look at variables not rejected by Boruta.
+keep <- names(fit.bt$finalDecision[fit.bt$finalDecision != 'Rejected'])
+length(keep)
+
+# Deal with factor indicators -- take max rank over factor levels.
+lmranks <- rank(-imp.lm$Overall)
+lmnames <- rownames(imp.lm)
+maxrank <- sapply(keep, function(i) {
+  hits <- sapply(lmnames, function(j) grepl(i, j))
+  if (sum(hits) == 0)
+    return(NA)
+  if (sum(hits) == 1) {
+    sel <- (lmnames == i)
+    if (sum(sel) == 0)
+      return(NA)
+    return(lmranks[sel])
+  }
+  levs <- lmnames[hits]
+  idx <- lmnames %in% levs
+  res <- max(lmranks[idx])
+  return(res)
+})
+
+ranks <- c(scale(unlist(maxrank)), 
+           scale(rank(-imp.rf$Overall)), 
+           scale(rank(-imp.bst$Gain)))
+vars <- c(names(maxrank), rownames(imp.rf), imp.bst$Feature)
+method <- rep(c('LM', 'RanForest', 'xgB'),  c(length(maxrank), nrow(imp.rf), nrow(imp.bst)))
+pd <- data.frame(normalizedRank = ranks, vars, method)
+```
+
+```{r plotme, fig.height=10}
+ggplot(subset(pd, vars %in% keep), aes(method, vars)) +
+    geom_tile(aes(fill = normalizedRank), colour = "white") +
+        scale_fill_distiller(palette = 'Spectral') +
+            theme_bw()
+```
+
