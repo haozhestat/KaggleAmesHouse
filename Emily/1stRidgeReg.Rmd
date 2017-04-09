@@ -1,0 +1,106 @@
+---
+title: "Ames Housing Feature Selection"
+author: "Emily Goren"
+date: "4/6/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+set.seed(13)
+
+require(randomForest)
+require(xgboost)
+require(caret)
+require(Boruta)
+
+### Put directory of file location here
+dir <- '/Users/emilygoren/Documents/School/ISU/Classes/STAT602/Kaggle/'
+```
+
+# Data Cleaning
+
+```{r data}
+train <- read.csv(paste0(dir, "train.csv"))
+test <- read.csv(paste0(dir, "test.csv"))
+testID <- test$Id
+train <- subset(train, select = -Id) # Drop ID, useless for prediction.
+test <- subset(test, select = -Id) # Drop ID, useless for prediction.
+test$SalePrice <- 0
+train <- rbind(test, train)
+dim(train)
+str(train)
+summary(train)
+```
+
+Building on Andrew's observations: 
+
+  - Change MSSubClass to a factor.
+  - For numeric variables, replace \texttt{NA}'s with the median value.
+  - For factor variables, make NA's into their own factor level. Most of these are "not applicable"" so they'll likely be correlated with similar variables, e.g. garage area and garage quality.
+  - Change the two condition variables into binary indicators for each condition.
+  
+```{r data2}
+train$MSSubClass <- as.factor(train$MSSubClass)
+# Replace NA's.
+missing <- apply(train, 2, function(x) sum(is.na(x)))
+missing[missing > 0]
+missvars <- names(missing[missing > 0])
+str(subset(train, select = missvars))
+# Replace numeric missing values with median, add NA as a factor level otherwise
+for (i in 1:length(missvars)) {
+    thisvar <- train[ , missvars[i]]
+    if (is.numeric(thisvar)) {
+        thisvar[is.na(thisvar)] <-  mean(thisvar[train$SalePrice > 0], na.rm = TRUE)
+    }
+    if (is.factor(thisvar))
+        thisvar <- addNA(thisvar)
+    train[ , missvars[i]] <- thisvar
+}
+# Make indicators for conditions.
+cond1 <- data.frame(model.matrix(~ Condition1 + 0, data = train))
+names(cond1) <- sub(".*1", "", names(cond1))
+cond2 <- data.frame(model.matrix(~ Condition2 + 0, data = train))
+names(cond2) <- sub(".*2", "", names(cond2))
+idx <- names(cond1) %in% names(cond2)
+cond <- cond1
+cond[, idx] <- cond1[, idx] + cond2
+cond <- as.data.frame(ifelse(cond == 0, 0, 1))
+train <- subset(train, select = -c(Condition1, Condition2))
+train <- cbind(train, cond)
+test <- subset(train,  SalePrice == 0)
+train <- subset(train, SalePrice > 0)
+```
+
+
+
+# Regularized Linear Regression
+Use first order interactions of Boruta selected predictors in an elastic net model. Using 73-fold repeated CV over $\alpha \in \{0,0.25,0.5,0.75,1\}$ (and many $\lambda$) the best $\alpha = 0$ (Ridge regression).
+
+```{r mod, eval = FALSE}
+nrp <- 10
+fold <- nrow(train) / 20
+require(glmnet)
+X <- model.matrix(SalePrice ~ (.)^2 + 0, data = train)
+fit <- glmnet(X, train$SalePrice,
+             lambda = 1400,
+             alpha = 0,
+             standardize = TRUE, standardize.response = TRUE)
+hat <- predict(fit, X)
+plot(hat ~ train$SalePrice, pch = 20,
+     xlab = 'Sale Price', ylab = 'Ridge Regression Predictor')
+cor(hat, train$SalePrice)
+```
+
+```{r test}
+AJS <- read.csv(paste0(dir, '1stPredictionsAJS.csv'))
+Xtest <- model.matrix(SalePrice ~ (.)^2 + 0, data = test)
+hat.new <- predict(fit, Xtest)
+EMG <- data.frame(Id = testID, SalePrice = as.numeric(hat.new))
+plot(AJS$SalePrice ~ EMG$SalePrice, pch = 20)
+cor(AJS$SalePrice, EMG$SalePrice)
+EMG$SalePrice <- (4 * AJS$SalePrice + EMG$SalePrice) / 5
+write.csv(EMG, paste0(dir, '1stPredictionsEMG.csv'), row.names = FALSE)
+```
