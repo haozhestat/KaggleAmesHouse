@@ -90,7 +90,6 @@ for (i in 1:length(ndsize)){
 
 #Show RMSE for nodesize by mtry combo
 RFTuneH[,,2]
-#Usenodesize=3, mtry=4
 RF=randomForest(y=train1[,71], x=train1[,-c(71)], mtry=21, nodesize=5)
 RFpredH=predict(RF)
 
@@ -104,6 +103,14 @@ PCRTestPred=predict(PCRTune, newdata = test1)
 TreeTestPred=predict(TreeTuneH, newdata = test1)
 test1$SalePrice=0
 RFTestPred=predict(RF, newdata = test1)
+
+PLSTestPred[PLSTestPred<0]=min(PLSTestPred[PLSTestPred>0])
+PCRTestPred[PCRTestPred<0]=min(PCRTestPred[PCRTestPred>0])
+
+write.csv(PLSTestPred, file="PLS_ajs.csv")
+write.csv(PCRTestPred, file="PCR_ajs.csv")
+write.csv(TreeTestPred, file="Tree_ajs.csv")
+write.csv(RFTestPred, file="RF_ajs.csv")
 
 
 
