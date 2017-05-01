@@ -1,0 +1,44 @@
+Ames Housing Kaggle Competition
+========================================================
+author: CycloneSTAT: Emily Goren, Andrew Sage, and Haozhe Zhang
+date: May 1st, 2017
+autosize: true
+
+Feature Selection
+========================================================
+- Missing features
+    - Categorical: added `NA` as a factor level
+    - Numerical: 
+- Additional variables
+- blah
+
+Methods
+========================================================
+- Elastic net (using quadratic terms, first order interactions)
+- Partial least squares regression (PLS)
+- Random forest
+- XGBoost
+    
+    
+Honest Cross-Validation
+========================================================
+- blah
+
+Stacking
+========================================================
+- Lasso?
+
+
+RMSE
+========================================================
+OLD!!!! 
+
+|   Method                                | Cross-validation RMSE |
+| --------------------------------------- | -------- |
+| Elastic Net (tuned to Ridge Regression) | 27267.2  |
+| Random GLM (order 2)                    | 609239.4 |
+| Random Forest                           | 27928.9  |
+| Conditional Random Forest               | 30489.9  |
+| PLS                                     | 32350.0  |
+
+Kaggle Scorboard: 0.12746 (#987) using average of random forest and PLS predictions.
