@@ -494,8 +494,8 @@ ggplot(train.test.df, aes(x=type, y=GrLivArea, fill=type)) +
 
 
 idx.outliers = which(train$GrLivArea > 4000)
-df.numeric = df.numeric[!1:nrow(df.numeric) %in% idx.outliers,]
-df.combined = df.combined[!1:nrow(df.combined) %in% idx.outliers,]
+#df.numeric = df.numeric[!1:nrow(df.numeric) %in% idx.outliers,]
+#df.combined = df.combined[!1:nrow(df.combined) %in% idx.outliers,]
 dim(df.numeric)
 
 
@@ -580,7 +580,7 @@ df = cbind(df.numeric, df.categoric)
 
 
 require(WVPlots)
-y.true = train$SalePrice[which(!1:1460 %in% idx.outliers)]
+y.true = train$SalePrice#[which(!1:1460 %in% idx.outliers)]
 
 qplot(y.true, geom='density') +# +(train, aes(x=SalePrice)) +
   geom_histogram(aes(y=..density..), color='black', 
@@ -629,7 +629,7 @@ df = df[,!names(df) %in% drop.cols]
 paste('The dataframe now has', dim(df)[1], 'rows and', dim(df)[2], 'columns')
 
 # write data into a .csv
-df <- data.frame(Train = c(rep(1,1456), rep(0,nrow(test))),
+df <- data.frame(Train = c(rep(1,length(y.true)), rep(0,nrow(test))),
                  SalePrice = c(log(y.true),rep(NA,nrow(test))),
                  df)
-write.csv(df, file = "featureMat_v2.csv", row.names = FALSE)
+write.csv(df, file = "featureMat_v3.csv", row.names = FALSE)

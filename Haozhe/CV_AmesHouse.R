@@ -11,14 +11,19 @@ require(randomForest)
 require(Metrics) # rmse
 require(dplyr) # load this in last so plyr doens't overlap it
 require(caret) # one hot encoding
+require(factoextra)
+
 
 df <- read.csv("featureMat_v2.csv", header = TRUE, stringsAsFactors = FALSE)
+pmatrix = prcomp(df[,3:ncol(df)], center = TRUE, scale. = TRUE)
+pmatrix$sdev
+df <- cbind(df[,1:2], pmatrix$x[,1:140])
 
 x_train = df[df$Train == 1, 3:ncol(df)]
 x_test = df[df$Train == 0, 3:ncol(df)]
 y_train = df$SalePrice[df$Train == 1]
 
-cv.ctrl = trainControl(method = "repeatedcv", repeats = 10, number = 10, 
+cv.ctrl = trainControl(method = "repeatedcv", repeats = 2, number = 10, 
                        allowParallel=T)
 
 # Xgboost
@@ -26,11 +31,11 @@ dtrain = xgb.DMatrix(as.matrix(x_train), label = y_train)
 dtest = xgb.DMatrix(as.matrix(x_test))
 
 xgb.grid = expand.grid(nrounds = 750,
-                       eta = c(0.01,0.005,0.001),
-                       max_depth = c(4,6,8),
-                       colsample_bytree=c(0,1,10),
+                       eta = 0.005,
+                       max_depth = 4,
+                       colsample_bytree=1,
                        min_child_weight = 2,
-                       subsample=c(0,0.2,0.4,0.6),
+                       subsample=0.6,
                        gamma=0.01)
 set.seed(602)
 xgb_tune = train(as.matrix(x_train),
@@ -40,6 +45,7 @@ xgb_tune = train(as.matrix(x_train),
        tuneGrid=xgb.grid,
        verbose=T,
        metric="RMSE",
+       preProcess = c("center", "scale"),
        nthread =3)
 
 xgb_params = list(
@@ -63,7 +69,7 @@ y_pred <- data.frame(Id = 1461:2919 , SalePrice = exp(y_pred.xgb))
 
 
 set.seed(602)
-fitControl <- trainControl(method = "repeatedcv",number = 10,repeats = 10)
+fitControl <- trainControl(method = "repeatedcv",number = 2,repeats = 10)
 glmnet_grid <- expand.grid(.alpha=seq(0,1,0.1),.lambda=c(0.01,0.1:0.9,1,5,10))
 glmnetFit <- train(as.matrix(x_train), y_train,
                    #data = ameshouse,
@@ -71,7 +77,9 @@ glmnetFit <- train(as.matrix(x_train), y_train,
                    tuneGrid=glmnet_grid,
                    trControl = fitControl,
                    preProc = c("center", "scale"))
+
 y_pred.elastic <- predict(glmnet(as.matrix(x_train), y_train, alpha=0.2,lambda=0.01), as.matrix(x_test))
+
 y_pred <- data.frame(Id = 1461:2919 , SalePrice = exp((y_pred.xgb+y_pred.elastic)/2) - 1)
 colnames(y_pred) <- c("Id",'SalePrice')
-write.csv(y_pred, file="xgboost_elastic_pred.csv", row.names = FALSE)
+write.csv(y_pred, file="xgboost_elastic_pca_pred.csv", row.names = FALSE)
