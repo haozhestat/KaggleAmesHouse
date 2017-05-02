@@ -76,4 +76,4 @@ RMSE (on Log Scale)
 | Lasso Stacking (E.Net, PLS, XGBoost)    | ?                     | 0.11774       |
 
 
-#267 on Kaggle Scorboard using Lasso Stacking 
+#267 on Kaggle Scoreboard using Lasso Stacking 
