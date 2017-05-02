@@ -1,7 +1,7 @@
 Ames Housing Kaggle Competition
 ========================================================
 author: CycloneSTAT: Emily Goren, Andrew Sage, and Haozhe Zhang
-date: May 1st, 2017
+date: May 2, 2017
 autosize: true
 
 Feature Selection
@@ -18,7 +18,7 @@ Methods
 - Partial least squares regression (PLS)
 - Random forest
 - XGBoost
-    
+- Ridge Regression    
     
 Honest Cross-Validation
 ========================================================
@@ -26,19 +26,32 @@ Honest Cross-Validation
 
 Stacking
 ========================================================
-- Lasso?
+- Used Caret ensemble to perform stacking within each fold of cross-validation
+- Stacked models based on Lasso 
+- Coefficients for optimal model:
 
+|   Method      | Stacking Coefficient | 
+| ------------  | ---------------------|
+| XGBoost       |                      | 
+| PLS           |                      |
+| Ridge         |                      |
 
-RMSE
+  
+  
+  
+RMSE (on Log Scale)
 ========================================================
-OLD!!!! 
 
-|   Method                                | Cross-validation RMSE |
-| --------------------------------------- | -------- |
-| Elastic Net (tuned to Ridge Regression) | 27267.2  |
-| Random GLM (order 2)                    | 609239.4 |
-| Random Forest                           | 27928.9  |
-| Conditional Random Forest               | 30489.9  |
-| PLS                                     | 32350.0  |
+|   Method                                | Cross-validation RMSE | Kaggle Score  |
+| --------------------------------------- | ----------------------|-------------- |
+| Elastic Net (tuned to Ridge Regression) |                       |               |
+| XGBoost                                 |                       |               |
+| Random Forest                           | 0.1434234             | 0.14174       |
+| PLS                                     | 0.1248234             | 0.1229        |
+| Ridge                                   |                       |               |
+| Caret Ensemble (E.Net, PLS, XGBoost)    | 0.12336               | 0.12284       |
 
-Kaggle Scorboard: 0.12746 (#987) using average of random forest and PLS predictions.
+
+Kaggle Scorboard: 0.11774 (#267) 
+
+using XGBoost, PLS, Ridge, stacked using LASSO.
