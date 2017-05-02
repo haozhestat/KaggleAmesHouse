@@ -19,12 +19,12 @@ xgb_params = list(
   #objective = 'reg:linear',
   colsample_bytree=0.6,
   eta=0.005,
-  max_depth=4,
+  max_depth=8,
   min_child_weight=2,
   #alpha=0.3,
   #lambda=0.4,
   gamma=0.01, # less overfit
-  subsample=0.6,
+  subsample=0.5,
   silent=TRUE)
 
 bst = xgb.train(xgb_params,dtrain, nrounds = 10000)
