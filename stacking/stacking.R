@@ -4,27 +4,33 @@ setwd("~/Documents/KaggleAmesHouse/stacking")
 
 library(glmnet)
 
-pls_train <- read.csv("pls_train_fm4.csv", header = TRUE)
-pls_test <- read.csv("pls_test_fm4.csv", header = TRUE)
+pls_train <- read.csv("pls_train_fm2.csv", header = TRUE)
+pls_test <- read.csv("pls_test_fm2.csv", header = TRUE)
 rf_train <- read.csv("RFTrainPred.csv", header = TRUE)
 rf_test <- read.csv("RFTestPred.csv", header = TRUE)
-xgb_train <- read.csv("xgboost_train_fm2_newtune.csv", header = TRUE)
-xgb_test <- read.csv("xgboost_test_fm2_newtune.csv", header = TRUE)
+xgb_train <- read.csv("xgboost_train_fm2.csv", header = TRUE)
+xgb_test <- read.csv("xgboost_test_fm2.csv", header = TRUE)
 elastic <- read.csv("el-EMG-pred-CV-ALL.csv", header = TRUE)
 elastic_train <- elastic[1:1460,]
 elastic_test <- elastic[1461:2919,]
-ridge_train <- read.csv("ridge_train_fm4.csv", header=TRUE)
-ridge_test <- read.csv("ridge_test_fm4.csv", header=TRUE)
+ridge_train <- read.csv("ridge_train_fm2.csv", header=TRUE, sep="\t")
+ridge_test <- read.csv("ridge_test_fm2.csv", header=TRUE, sep="\t")
 
 x_train <- data.frame(pls = pls_train$SalePrice[pls_train$Id %in% xgb_train$Id],
                       #rf = rf_train$SalePrice[rf_train$Id %in% xgb_train$Id],
                       xgb = xgb_train$SalePrice,
                       ridge = ridge_train$SalePrice)
+                      #root_pls = sqrt(pls_train$SalePrice[pls_train$Id %in% xgb_train$Id]),
+                      #root_xgb = sqrt(xgb_train$SalePrice),
+                      #root_ridge = sqrt(ridge_train$SalePrice))
 x_train <- log(x_train)
 x_test <- data.frame(pls = pls_test$SalePrice[pls_test$Id %in% xgb_test$Id],
                      #rf = rf_test$SalePrice[rf_test$Id %in% xgb_test$Id],
                      xgb = xgb_test$SalePrice,
                      ridge = ridge_test$SalePrice)
+                     #root_pls = sqrt(pls_test$SalePrice[pls_test$Id %in% xgb_test$Id]),
+                     #root_xgb = sqrt(xgb_test$SalePrice),
+                     #root_ridge = sqrt(ridge_test$SalePrice))
 x_test <- log(x_test)
 df <- read.csv("featureMat_v2.csv", header = TRUE, stringsAsFactors = FALSE)
 y_train = df$SalePrice[df$Train == 1]
@@ -39,7 +45,7 @@ abline(a=0,b=1,col="red")
 y_pred <- data.frame(Id = 1461:2919, 
                      SalePrice = exp(predict(lasso_fit, as.matrix(x_test))))
 colnames(y_pred) <- c("Id", "SalePrice")
-write.csv(y_pred, file="stacking_pred_in_featuremat.csv", row.names = FALSE)
+write.csv(y_pred, file="stacking_lasso.csv", row.names = FALSE)
 
 mean(abs(predict(lasso_fit, as.matrix(x_train[,c(1,3,4)]))-y_train))
 
