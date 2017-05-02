@@ -1,0 +1,38 @@
+---
+title: "Prediction of Ames, IA House Prices"
+author: "Emily Goren, Andrew Sage, Haozhe Zhang"
+date: "May 5, 2017"
+output: pdf_document
+---
+# Introduction
+
+We'll do this last.
+
+# Feature Engineering
+
+##Subsection 1 (Change title)
+Discussion of feature matrix v2 (based on Tanner C's kernel). Andrew will write based on Haozhe's code.
+
+##Subsection 2 (Change title)
+Discussion of Andrew's feature matrix based on ordinal categorical variables
+
+##Subsection 3 (Change title)
+Discussion of Emily's feature matrices and honest cross-validation procedure
+
+
+# Model Tuning
+
+##Elastic Net Regression
+Emily
+
+##Extreme Gradient Boosting
+Haozhe
+
+##Partial Least Squares
+Andrew
+
+##Random Forest
+Andrew
+
+# Model Stacking 
+Haozhe
