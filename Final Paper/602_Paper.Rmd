@@ -1,5 +1,5 @@
 ---
-title: "Prediction of Ames, IA House Prices"
+title: "Prediction of Ames House Prices"
 author: "Emily Goren, Andrew Sage, Haozhe Zhang"
 date: "May 5, 2017"
 output: pdf_document
@@ -52,7 +52,32 @@ Since cross-validation was also used to choose tuning parameters, use of the "ho
 Emily
 
 ##Extreme Gradient Boosting
-Haozhe
+
+E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting algorithms that convert weak learners into strong learners. A weak learner is one which is slightly better than random guessing. As a sequential boosting process, XGBoost usually has more hyperparameters compared with other machine learning algorithms. Since  the tree booster outperforms the linear booster in many cases, in this problem, we consider only tree-based XGBoost, which has 7 tuning parameters. Each hyperparameter plays a significant role in the model's predictive performance. Before hypertuning, let's first understand these parameters and their importance.
+
+1. *max_depth*: the depth of the tree. Larger the depth, more complex the model; higher chances of overfitting. There is no standard value for max_depth. Larger data sets require deep trees to learn the rules from data.
+2. *nrounds*: the maximum number of iterations.
+3. *min_child_weight*: the minimum sum of weights of all observations required in a child. 
+4. *gamma*: the minimum loss reduction required to make a split. A node is split only when the resulting split gives a positive reduction in the loss function. 
+5. *subsample*: the proportion of samples (observations) supplied to a tree.
+6. *colsample_bytree*: the proportion of features (variables) supplied to a tree
+7. *eta*: the learning rate. Lower eta leads to slower computation with an increase in *nrounds*.
+
+Fine-tuning XGBoost by exploring the 7-dimension space in an efficient is a big challenge in terms of computation. There are a lot of methods and literatures about searching the global minimizer, to name a few, such as random search\footnote{Bergstra, James, and Yoshua Bengio. ``Random search for hyper-parameter optimization.'' Journal of Machine Learning Research 13.Feb (2012): 281-305.}, bayesian optimization\footnote{Snoek, Jasper, Hugo Larochelle, and Ryan P. Adams. ``Practical bayesian optimization of machine learning algorithms.'' Advances in neural information processing systems. 2012.}$^{,}$\footnote{http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html}, and efficient global optimization of expensive black-box functions\footnote{Jones, Donald R., Matthias Schonlau, and William J. Welch. ``Efficient global optimization of expensive black-box functions.'' Journal of Global optimization 13.4 (1998): 455-492.}. Due to the limitation of time and computing hardware ability, we customized the grid of tuning parameters as follows, based on our previous experiences and professional guides.
+
+```{r}
+xgb_grid = expand.grid(nrounds = c(2000, 4000, 8000),
+                       eta = c(0.01, 0.005, 0.001),
+                       max_depth = c(2, 4, 6, 8, 10),
+                       colsample_bytree=c(0.8,1),
+                       min_child_weight = c(2, 3),
+                       subsample=c(0.6, 0.8, 1),
+                       gamma=c(0,0.01))
+```
+
+A repeated 10-fold cross validation were conducted to search over the above grid on condo2017 server that allows paralleling 16 jobs. It took 10 hours to finish running the code. The cross validation error is $0.1160675$. The final values of parameters used for the model were nrounds = $4000$, max_depth = $4$, eta
+ = $0.005$, gamma = $0$, colsample_bytree = $0.6$, min_child_weight = $2$ and
+ subsample = $0.5$.
 
 ##Partial Least Squares
 Andrew
@@ -62,3 +87,6 @@ Andrew
 
 # Model Stacking 
 Haozhe
+
+# Summary
+We'll do this last.

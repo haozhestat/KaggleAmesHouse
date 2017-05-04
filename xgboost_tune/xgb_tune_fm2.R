@@ -15,12 +15,12 @@ dtest = xgb.DMatrix(as.matrix(x_test))
 
 cv_ctrl = trainControl(method = "repeatedcv", repeats = 2, number = 5, allowParallel=T)
 
-xgb_grid = expand.grid(nrounds = 2000,
+xgb_grid = expand.grid(nrounds = c(2000, 4000, 8000),
                        eta = c(0.01, 0.005, 0.001),
-                       max_depth = c(2, 4, 6, 8),
+                       max_depth = c(2, 4, 6, 8, 10),
                        colsample_bytree=c(0.8,1),
-                       min_child_weight = 2,
-                       subsample=c(0.6,0.8),
+                       min_child_weight = c(2, 3),
+                       subsample=c(0.6, 0.8, 1),
                        gamma=c(0,0.01))
 
 
