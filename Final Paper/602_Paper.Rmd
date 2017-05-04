@@ -53,17 +53,17 @@ Emily
 
 ##Extreme Gradient Boosting
 
-E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting algorithms that convert weak learners into strong learners. A weak learner is one which is slightly better than random guessing. As a sequential boosting process, XGBoost usually has more hyperparameters compared with other machine learning algorithms. Since  the tree booster outperforms the linear booster in many cases, in this problem, we consider only tree-based XGBoost, which has 7 tuning parameters. Each hyperparameter plays a significant role in the model's predictive performance. Before hypertuning, let's first understand these parameters and their importance.
+E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting algorithms that convert weak learners into strong learners. A weak learner is one which is slightly better than random guessing. As a sequential boosting process, XGBoost usually has more hyperparameters than other machine learning algorithms. Since  the tree booster outperforms the linear booster in many cases, in this problem, we consider only tree-based XGBoost, which has 7 tuning parameters. Each hyperparameter plays a significant role in the model's predictive performance. Before hypertuning, let's first understand these parameters and their importance.
 
 1. *max_depth*: the depth of the tree. Larger the depth, more complex the model; higher chances of overfitting. There is no standard value for max_depth. Larger data sets require deep trees to learn the rules from data.
 2. *nrounds*: the maximum number of iterations.
 3. *min_child_weight*: the minimum sum of weights of all observations required in a child. 
-4. *gamma*: the minimum loss reduction required to make a split. A node is split only when the resulting split gives a positive reduction in the loss function. 
+4. *gamma*: the minimum loss reduction required to make a split. A node is split only made when the resulting split gives a positive reduction in the loss function. 
 5. *subsample*: the proportion of samples (observations) supplied to a tree.
 6. *colsample_bytree*: the proportion of features (variables) supplied to a tree
 7. *eta*: the learning rate. Lower eta leads to slower computation with an increase in *nrounds*.
 
-Fine-tuning XGBoost by exploring the 7-dimension space in an efficient is a big challenge in terms of computation. There are a lot of methods and literatures about searching the global minimizer, to name a few, such as random search\footnote{Bergstra, James, and Yoshua Bengio. ``Random search for hyper-parameter optimization.'' Journal of Machine Learning Research 13.Feb (2012): 281-305.}, bayesian optimization\footnote{Snoek, Jasper, Hugo Larochelle, and Ryan P. Adams. ``Practical bayesian optimization of machine learning algorithms.'' Advances in neural information processing systems. 2012.}$^{,}$\footnote{http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html}, and efficient global optimization of expensive black-box functions\footnote{Jones, Donald R., Matthias Schonlau, and William J. Welch. ``Efficient global optimization of expensive black-box functions.'' Journal of Global optimization 13.4 (1998): 455-492.}. Due to the limitation of time and computing hardware ability, we customized the grid of tuning parameters as follows, based on our previous experiences and professional guides.
+Fine-tuning XGBoost by exploring the 7-dimension space in an efficient way is a big challenge in terms of computation. There are a lot of methods and literature about searching the global minimizer, to name a few, such as random search\footnote{Bergstra, James, and Yoshua Bengio. ``Random search for hyper-parameter optimization.'' Journal of Machine Learning Research 13.Feb (2012): 281-305.}, bayesian optimization\footnote{Snoek, Jasper, Hugo Larochelle, and Ryan P. Adams. ``Practical bayesian optimization of machine learning algorithms.'' Advances in neural information processing systems. 2012.}$^{,}$\footnote{http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html}, and efficient global optimization of expensive black-box functions\footnote{Jones, Donald R., Matthias Schonlau, and William J. Welch. ``Efficient global optimization of expensive black-box functions.'' Journal of Global optimization 13.4 (1998): 455-492.}. Due to the limitation of time and computing hardware ability, we customized the grid of tuning parameters as follows, based on our previous experiences and professional guides.
 
 ```{r}
 xgb_grid = expand.grid(nrounds = c(2000, 4000, 8000),
@@ -75,18 +75,50 @@ xgb_grid = expand.grid(nrounds = c(2000, 4000, 8000),
                        gamma=c(0,0.01))
 ```
 
-A repeated 10-fold cross validation were conducted to search over the above grid on condo2017 server that allows paralleling 16 jobs. It took 10 hours to finish running the code. The cross validation error is $0.1160675$. The final values of parameters used for the model were nrounds = $4000$, max_depth = $4$, eta
+A repeated 10-fold cross validation was conducted to search over the above grid on condo2017 server that allows paralleling 16 jobs. It took 10 hours to finish running the code. The cross validation error is $0.1160675$. The final values of parameters used for the model were nrounds = $4000$, max_depth = $4$, eta
  = $0.005$, gamma = $0$, colsample_bytree = $0.6$, min_child_weight = $2$ and
  subsample = $0.5$.
 
 ##Partial Least Squares
-Andrew
+We used partial least squares to perform regression on a parameter space of lower dimension that that of the original data matrix, taking advantage of house price information in the dimension reduction process. We used 10-fold cross validation, repeated 10 times to determine the optimal number of components. Using the data matrix including all 1460 training cases, the optimal number of components was 9, and this resulted in a cross-validation error rate of 0.12482. 
 
 ##Random Forest
-Andrew
+We attempted to use random forest methodology as a nonlinear method for predicting house prices. Cross-validation was used to set the number of predictor variables considered for each split, as a terminal nodesize below which no further splits are made. Initial results for this method were not promising, typically yielding cross-validation scores at least 0.015 higher than other methods.
+
+We attempted to improve performance by using a 2-step process suggested by Breiman in situations where there are a large number of predictor variables. First a random forest is grown using all predictors, and variable importance scores are calculated. A subset of the most important predictors is then used to grow a second random forest, from which predictions are made. Cross-validation was used to determine the size of this subset, (denoted P), along with the proportion of these variables to be considered for each split ($m$), and terminal nodesize ($n$). Due to computational complexity, a single 10-fold cross validation was performed with forests consisting of 100 trees. This was done using a version of the feature matrix that included 95 predictor variables, with ordinal variables treated as numeric. The following table gives cross-validation error for different combinations of $P$ and $m$, when $n$ is held at its optimal (and also default) value of 5. 
+
+| P $\backslash$ m |     0.3   |    0.4    |    0.5    |    0.6    |    0.7   | 
+| ------------     | ----------|---------- | ----------|---------- |-----------|
+| 55               | 0.1450352 | 0.1455936 | 0.1452127 | 0.1455201 | 0.1455318 |
+| 65               | 0.1451470 | 0.1442016 | 0.1428470 | 0.1454558 | 0.1459102 |
+| 75               | 0.1456480 | 0.1455370 | 0.1454964 | 0.1437217 | 0.1464847 |
+| 85               | 0.1452051 | 0.1458660 | 0.1455621 | 0.1459192 | 0.1458570 | 
+| 95               | 0.1457250 | 0.1431714 | 0.1453318 | 0.1460281 | 0.1459981 |
+
+There is some sign that using 65 of the original 95 predictors and then considering about half of these for each split might improve performance compared to a random forest that uses all 95. However, the gain is very slight, and given the small number of trees used in this cross-validation, it is not clear that this is really an improvement at all. Ultimately, we decided not to use random forest predictions, as this method proved inferior to other methods by itself, and did not lead to improvement when averaged with predictions from other techniques. Early attempts using conditional random forests, and individual regression trees also showed inferior predictive performance and were also abandoned. 
+
 
 # Model Stacking 
 Haozhe
 
+
+|   Method                                | CV RMSE | Kaggle Public Score  | Kaggle Private Score
+| --------------------------------------- | ----------------------|-------------- |-------------- |
+| Elastic Net                             | 0.13384               | 0.13309       | 0.14449
+| XGBoost                                 | 0.11607               | 0.12362       | 0.12514
+| Random Forest                           | 0.14342               | 0.14174       | 0.13476
+| PLS                                     | 0.12482               | 0.12290       | 0.12654 
+| Caret Ensemble (E.Net, PLS, XGBoost)    | 0.12336               | 0.12284       | 0.12310
+| Lasso Stacking (E.Net, PLS, XGBoost)    | ?                     | 0.11774       | 0.12291
+
+
 # Summary
-We'll do this last.
+
+Our two official submissions reflect a combination of our desire to stack predictions in an honest, cross-validation based manner with our hope of obtaining the best score possible. Because caret ensemble's stacking is guided by cross-validation, it serves as a reliable gauge of predictive performance. The lasso-based stacking procedure discussed in the previous section resulted in predictions that ranked considerably higher on Kaggle's leaderboard. We were not able to perform legitimate cross-validation for the lasso predictions due to time and computational complexity. 
+
+The performance of the caret ensemble technique largely held up, achieving very similar public and private Kaggle scores as it did through cross-validation. We are not surprised that the private score for the lasso-based stacking method is inferior to the public score. Having not been able to use legitimate cross-validation this stacking procedure, we suspected that it might overfit the training data along with the portion of the the test data used to produce the public score. However, the magnitude of the difference between the public and private scores is striking. This is not to say that our lasso-based stacking was a bad idea, as it did very slightly outperform caret ensemble on the private leaderboard, but the hope that it would lead to a substantial proved to be unrealistic.  
+
+<!-- Add paragraph about excluding outliers assuming Emily's observation about best scoring private prediciton is correct. -->
+
+We found the presence of the public Kaggle leaderboard to be something of a curse. While we did not consciously try to "game" the Kaggle system, it is difficult to not be drawn toward those techniques which are performing best on the leaderboard and this might have influenced some of our decisions on feature selection, model stacking, and the treatment of possible outliers. In the end, we were able to modify and use the methods in caret to set tuning parameters and stack models using legitimate cross-validation. These methods led to cross-validation scores that proved to be reliable predictors for both public and private scores. More subjective decisions, such as as removing outliers, and our choice of model stacking, that initially seemed to be validated by the public leaderboard did not hold up for the private scores. Our results underscore the importance of establishing precise rules and testing them carefully through cross-validation. Otherwise, seemingly logical decisions guided, perhaps even subconsciously, by the entire training (or public test) data lead to results that are too good to be true. 
+
