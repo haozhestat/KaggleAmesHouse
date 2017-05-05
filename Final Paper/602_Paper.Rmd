@@ -7,8 +7,79 @@ header-includes:
     - \usepackage{setspace} \onehalfspacing  <!-- Vardeman said 1.5 line spacing - EMG --> 
     - \setlength\parindent{24pt} <!-- indent new paragraphs -->
     - \usepackage{amsmath,amssymb,amsthm,bm}
+references:
+- id: tanner
+  title: Detailed Data Analysis and Ensemble Modeling
+  author:
+  - family: Carbonati
+    given: Tanner
+  URL: 'https://www.kaggle.com/tannercarbonati/detailed-data-analysis-ensemble-modeling/'
+  type: webpage
+  issued:
+    year: 2017
+- id: rand
+  title: Random search for hyper-parameter optimization
+  author:
+  - family: Bergstra
+    given: James
+  - family: Bengio
+    given: Yoshua
+  type: article-journal
+  issued:
+    year: 2012
+  container-title: Journal of Machine Learning Research 
+  volume: 13
+  page: 281-305
+- id: bayes1
+  author:
+  - family: Snoek
+    given: Jasper
+  - family: Larochelle
+    given: Hugo
+  - family: Adams
+    given: Ryan
+  type: article-journal
+  issued:
+    year: 2012
+  container-title: Advances in neural information processing systems
+  title: Practical Bayesian optimization of machine learning algorithms
+- id: bayes2
+  title: Bayesian Optimization of Machine Learning Models
+  author:
+  - family: Kuhn
+    given: Max
+  URL: 'http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html'
+  type: webpage
+  issued:
+    year: 2016
+- id: blackbox
+  title: Efficient global optimization of expensive black-box functions
+  author:
+  - family: Jones
+    given: Donald
+  - family: Schonlau
+    given: Matthias
+  - family: Welch
+    given: William
+  type: article-journal
+  issued:
+    year: 1998
+  container-title: Journal of Global optimization
+  volume: 13
+  page: 455-492
+- id: breiman
+  title: Manual---setting up, and understanding random forests V4.0.
+  author:
+  - family: Breiman
+    given: Leo
+  URL: 'https://www.stat.berkeley.edu/~breiman/RandomForests/'
+  type: webpage
+  issued:
+    year: 2003  
 ---
+
 # Introduction
+
 
 The Kaggle House Price competition involves predicting prices of houses sold in Ames, Iowa between 2006 and 2010. Using the prices of houses in a training set that consists of half of the houses sold, and information provided by more than 80 explanatory variables, we seek to predict the prices of the other half of the houses sold. This test set is further divided, with half of its observations contributing to a public score posted on Kaggle's leaderboard, and the other half contributing to a private score, which we only learned after our final submission.
 
@@ -28,7 +99,7 @@ After accounting for missingness, we considered ways to make better use of some 
 
 Many of the categorical variables in the dataset can be associated with a natural ordering, (i.e., excellent, good, typical, fair, poor).  It is advantageous to utilize this ordering, when using tree-based methods, since these methods are invariant to scale. A version of the data matrix, intended for tree-based approaches, was created in which ordinal variables were converted to numeric and ordered appropriately. Categorical variables, such as type of basement finish, for which there is no natural ordering were initially left as categorical. When performing linear regression these variables were treated as categorical and indicators for each level were used. 
 
-The steps taken thus far rely on rules derived from the data descriptions, and do not depend on the actual data. Whether these steps are taken on the entire training and test data together, or within the folds of a cross-validation procedure has no bearing on the resulting features. Using the training data to inform our creation of features and to perform imputation might result in improved predictive performance. A Kaggle kernel by Tanner Carbonati,\footnote{Carbonati, Tanner (2017) ``Detailed Data Analysis and Ensemble Modeling.'' Retrieved from https://www.kaggle.com/tannercarbonati/detailed-data-analysis-ensemble-modeling/} which was discussed by other groups in class, provides a number of ideas for construction of such features.
+The steps taken thus far rely on rules derived from the data descriptions, and do not depend on the actual data. Whether these steps are taken on the entire training and test data together, or within the folds of a cross-validation procedure has no bearing on the resulting features. Using the training data to inform our creation of features and to perform imputation might result in improved predictive performance. A Kaggle kernel by Tanner Carbonati [-@tanner], which was discussed by other groups in class, provides a number of ideas for construction of such features.
 
 Numerical variables with missing values, most notably lot frontage, can be imputed by using the values of lot frontage for houses in the same neighborhood. Similarly, missing values for categorical variables can be filled using the most frequently occurring category for that variable, for similar cases. For example, there are three houses with pools, whose quality was not reported. Carbonati suggests assigning these pools the quality that occurs most frequently for pools with size similar to the ones with missing values.
 
@@ -40,28 +111,28 @@ Use of the training data, including the response variable, in imputation and fea
 
 ## Imputation and Cross-Validation
 
-To obtain a cross-validation error that fully or "honestly" captures the performance of a predictor, all steps involved in producing a predictor must be applied to each cross-validation training set, including preprocessing (i.e., centering and scaling) and imputation. However, the preprocessing and imputation functionality in the \texttt{caret} package for \texttt{R} is limited and cannot be applied to categorical variables. Consequently, we created custom models for elastic net regression, partial least squares, and random forests that accept the raw dataset and perform all of the imputation procedures described in the previous section (except for removing outlying observations) prior to training using the corresponding built-in model in \texttt{caret}. As part of the custom model, we changed the prediction functionality to incorporate the imputation and preprocessing (so that the prediction behavior for the custom models mirrors the built-in ones).
+To obtain a cross-validation error that fully or "honestly" captures the performance of a predictor, all steps involved in producing a predictor must be applied to each cross-validation training set, including preprocessing (i.e., centering and scaling) and imputation. However, the preprocessing and imputation functionality in the \texttt{caret} package for \texttt{R} is limited and cannot be applied to categorical variables. Consequently, we created custom models for elastic net regression, partial least squares, and random forests (see the next section for model and tuning details) that accept the raw dataset and perform all of the imputation procedures described in the previous section (except for removing outlying observations) prior to training using the corresponding built-in model in \texttt{caret}. As part of the custom model, we changed the prediction functionality to incorporate the imputation and preprocessing (so that the prediction behavior for the custom models mirrors the built-in ones).
 
-Our "honest" 10-fold cross-validation procedure using \texttt{caret} is as follows. Let $\bm{T}_1, \dots, \bm{T}_{10}$ represent the "folds" of the full training dataset, say $\bm{T}$. Our custom \texttt{caret} models then perform imputation followed by preprocessing on each of the reduced training sets $\bm{T} - \bm{T}_k$ to produce the new feature matrices $\bm{X}_k^\ast$ ($k = 1, \dots, 10$). Training was then performed based on $\bm{X}_k^\ast$. We define the cross-validation error resulting from this procedure to be ``honest.''
+Our "honest" 10-fold cross-validation procedure using \texttt{caret} is as follows. Let $\bm{T}_1, \dots, \bm{T}_{10}$ represent the "folds" of the full training dataset, say $\bm{T}$. Our custom \texttt{caret} models then perform imputation followed by preprocessing on each of the reduced training sets $\bm{T} - \bm{T}_k$ to produce the new feature matrices $\bm{X}_k^\ast$ that were used for training ($k = 1, \dots, 10$). We define the cross-validation error resulting from this procedure to be ``honest.''
 
-In contrast, the "default" 10-fold cross-validation procedure performs imputation using both the training dataset, $\bm{T}$, and the test dataset, $\bm{T}^\text{new}$ prior to splitting the training dataset into "folds." Let $\bm{T}^\ast$ denote the rows of the resulting imputed dataset that correspond to the training cases. Then, we form the cross-validation ``folds'' to obtain the reduced training sets $\bm{T}^\ast - \bm{T}^\ast_k$ and preprocess each one to obtain the new feature matrices $\bm{X}_k^{\ast\ast}$ used for training ($k = 1,\dots, 10$).
+In contrast, the "default" 10-fold cross-validation procedure performs imputation using both the training dataset, $\bm{T}$, and the test dataset, say $\bm{T}^\text{new}$, prior to splitting the training dataset into "folds." Let $\bm{T}^\ast$ denote the rows of the resulting imputed dataset that correspond to the training cases. Then, we form the cross-validation ``folds'' to obtain the reduced training sets $\bm{T}^\ast - \bm{T}^\ast_k$ and preprocess each one to obtain the new feature matrices $\bm{X}_k^{\ast\ast}$ used for training ($k = 1,\dots, 10$).
 
 
-Since cross-validation was also used to choose tuning parameters, use of the "honest" procedure resulted not only in a larger cross-validation error rate, but also a larger Kaggle score. For elastic net regression, the "honest" method repeated (10 times) cross-validation produced a RMSE of 0.17409 and a Kaggle score of 0.17501. Using the "default" method, the values were 0.13384 and 0.13309, respectively. The "honest" method's higher error can be attributed to tuning parameter selection that is based on a feature matrix imputed using fewer samples, making some features less informative. We omit our results for partial least squares regression and random forest because we are not certain our code was working correctly. Due to the coding challenges involved in implementing the custom models, for the remainder of this paper we will use the "default" cross-validation method.
+Since cross-validation was also used to choose tuning parameters, use of the "honest" procedure resulted not only in a larger cross-validation error, but also a larger Kaggle score. For elastic net regression, the "honest" method repeated (10 times) cross-validation produced a RMSE of 0.17409 and a Kaggle score of 0.17501. Using the "default" method, the values were 0.13384 and 0.13309, respectively. The "honest" method's higher error can be attributed to tuning parameter selection that is based on a feature matrix imputed using fewer samples, making some features less informative. We omit our results for partial least squares regression and random forest approaches because we are not certain our code was working correctly. Due to the coding challenges involved in implementing the custom models, for the remainder of this paper we will use the "default" cross-validation method.
 
 
 # Model Tuning
 
 ##Elastic Net Regression
 
-In prediction settings, many features may be unimportant and contribute to overfitting. For linear regression, fitting using regularization approaches, as opposed to ordinary least squares, may help avoid overfitting. The two most prominent regularization methods are the LASSO and ridge regression, which impose a scaled $\ell_1$ or $\ell_2$ norm penalty, respectively, on the estimated coefficient vector. The elastic net linearly combines these two penalties with weights $\alpha$ and $1-\alpha$, respectively. The strength of the penalty is controlled by a tuning parameter $\lambda$.
+In prediction settings, many features may be unimportant and contribute to overfitting. For linear regression, using regularization approaches instead of ordinary least squares may help avoid overfitting. The two most prominent regularization methods are the lasso and ridge regression, which impose a scaled $\ell_1$ or $\ell_2$ norm penalty, respectively, on the estimated coefficient vector. The elastic net linearly combines these two penalties with weights $\alpha$ and $1-\alpha$, respectively. The strength of the penalty is controlled by a tuning parameter, $\lambda$.
 
-To be able to capture interactions and nonlinear relationships, we included one-way interactions between all variables in the feature matrix described above, where categorical variables were converted to dummy variables, as well as quadratic terms for all numerical variables. Using the resulting feature matrix, we choose the two tuning parameters for the Ames housing data using 10-fold cross-validation repeated 10 times via the \texttt{caret} and \texttt{glmnet} packages for \texttt{R}. We searched over a grid for $\alpha \in (0, 0.1, 0.2, \dots, 1)$ and $\lambda \in (0.001, 0.051, 0.101, \dots, 0.951)$. For fitting using log sale price as the response, the optimal values were $\alpha = 0.1$ and $\lambda = 0.051$. Preliminary versions of the design matrix that we considered resulted in $\alpha = 0$, producing ridge regression.
+To be able to capture interactions and nonlinear relationships, we included one-way interactions between all variables in the feature matrix described previously, where categorical variables were converted to dummy variables, as well as quadratic terms for all numerical variables. Using the resulting feature matrix, we selected the two tuning parameters for the Ames housing data using 10-fold cross-validation repeated 10 times via the \texttt{caret} and \texttt{glmnet} packages for \texttt{R}. We searched over a grid for $\alpha \in \{0, 0.1, 0.2, \dots, 1\}$ and $\lambda \in \{0.001, 0.051, 0.101, \dots, 0.951\}$. For fitting using log sale price as the response, the optimal values were $\alpha = 0.1$ and $\lambda = 0.051$. Preliminary versions of the design matrix that we considered resulted in $\alpha = 0$, producing ridge regression.
 
 
 ##Extreme Gradient Boosting
 
-E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting algorithms that convert weak learners into strong learners. A weak learner is one which is slightly better than random guessing. As a sequential boosting process, XGBoost usually has more hyperparameters than other machine learning algorithms. Since  the tree booster outperforms the linear booster in many cases, in this problem, we consider only tree-based XGBoost, which has 7 tuning parameters. Each hyperparameter plays a significant role in the model's predictive performance. Before hypertuning, let's first understand these parameters and their importance.
+E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting algorithms that convert weak learners into strong learners. A weak learner is one which is slightly better than random guessing. As a sequential boosting process, XGBoost usually has more hyperparameters than other machine learning algorithms. Since  the tree booster outperforms the linear booster in many cases, in this problem, we consider only tree-based XGBoost, which has 7 tuning parameters. Each hyperparameter plays a significant role in the model's predictive performance. The hyperparameters are
 
 1. *max_depth*: the depth of the tree. Larger the depth, more complex the model; higher chances of overfitting. There is no standard value for max_depth. Larger data sets require deep trees to learn the rules from data.
 2. *nrounds*: the maximum number of iterations.
@@ -71,21 +142,10 @@ E**x**treme **G**radient **Boost**ing (XGBoost) belongs to a family of boosting 
 6. *colsample_bytree*: the proportion of features (variables) supplied to a tree
 7. *eta*: the learning rate. Lower eta leads to slower computation with an increase in *nrounds*.
 
-Fine-tuning XGBoost by exploring the 7-dimension space in an efficient way is a big challenge in terms of computation. There are a lot of methods and literature about searching the global minimizer, to name a few, such as random search\footnote{Bergstra, James, and Yoshua Bengio. ``Random search for hyper-parameter optimization.'' Journal of Machine Learning Research 13.Feb (2012): 281-305.}, bayesian optimization\footnote{Snoek, Jasper, Hugo Larochelle, and Ryan P. Adams. ``Practical Bayesian optimization of machine learning algorithms.'' Advances in neural information processing systems. 2012.}$^{,}$\footnote{http://blog.revolutionanalytics.com/2016/06/bayesian-optimization-of-machine-learning-models.html}, and efficient global optimization of expensive black-box functions\footnote{Jones, Donald R., Matthias Schonlau, and William J. Welch. ``Efficient global optimization of expensive black-box functions.'' Journal of Global optimization 13.4 (1998): 455-492.}. Due to the limitation of time and computing hardware ability, we customized the grid of tuning parameters as follows, based on our previous experiences and professional guides.
+Fine-tuning XGBoost by exploring the 7-dimension space in an efficient way is a big challenge in terms of computation. There are a lot of methods and literature about searching the global minimizer, to name a few, such as random search [@rand], Bayesian optimization [@bayes1, @bayes2], and efficient global optimization of expensive black-box functions [@blackbox]. To reduce the computation burden, we considered the tuning parameters based on a grid using  *nrounds* $\in \{2000, 4000, 8000\}$, *eta* $\in \{0.01, 0.005, 0.001\}$, *max_depth* $\in \{2, 4, 6, 8, 10\}$, *colsample_bytree* $\in \{0.8,1\}$, *min_child_weight* $\in \{2, 3\}$, *subsample* $\in \{0.6, 0.8, 1\}$, and *gamma* $\in \{0,0.01\}$.
 
-```{r}
-xgb_grid = expand.grid(nrounds = c(2000, 4000, 8000),
-                       eta = c(0.01, 0.005, 0.001),
-                       max_depth = c(2, 4, 6, 8, 10),
-                       colsample_bytree=c(0.8,1),
-                       min_child_weight = c(2, 3),
-                       subsample=c(0.6, 0.8, 1),
-                       gamma=c(0,0.01))
-```
-
-A repeated 10-fold cross validation was conducted to search over the above grid on condo2017 server that allows paralleling 16 jobs. It took 10 hours to finish running the code. The cross validation error is $0.1160675$. The final values of parameters used for the model were nrounds = $4000$, max_depth = $4$, eta
- = $0.005$, gamma = $0$, colsample_bytree = $0.6$, min_child_weight = $2$ and
- subsample = $0.5$.
+Repeated 10-fold cross-validation was conducted to search over the above grid on the condo2017 server that allows paralleling 16 jobs. It took 10 hours to finish running the code. The resulting cross-validation error was $0.1160675$. The final values of parameters used for the model were *nrounds* = $4000$, *max_depth* = $4$, *eta* = $0.005$, *gamma* = $0$, *colsample_bytree* = $0.6$, *min_child_weight* = $2$ and
+ *subsample* = $0.5$.
 
 ##Partial Least Squares
 We used partial least squares to perform regression on a parameter space of lower dimension that that of the original data matrix, taking advantage of house price information in the dimension reduction process. We used 10-fold cross validation, repeated 10 times to determine the optimal number of components. Using the data matrix including all 1460 training cases, the optimal number of components was 9, and this resulted in a cross-validation error rate of 0.12482. 
@@ -93,7 +153,7 @@ We used partial least squares to perform regression on a parameter space of lowe
 ##Random Forest
 We attempted to use random forest methodology as a nonlinear method for predicting house prices. Cross-validation was used to set the number of predictor variables considered for each split, as a terminal nodesize below which no further splits are made. Initial results for this method were not promising, typically yielding cross-validation scores at least 0.015 higher than other methods.
 
-We attempted to improve performance by using a 2-step process suggested by Breiman  \footnote{Leo Breiman (2003). ``Manual---setting up, and understanding random forests V4.0.'' Retrieved from https://www.stat.berkeley.edu/~breiman/RandomForests/} in situations where there are a large number of predictor variables. First a random forest is grown using all predictors, and variable importance scores are calculated. A subset of the most important predictors is then used to grow a second random forest, from which predictions are made. Cross-validation was used to determine the size of this subset, (denoted P), along with the proportion of these variables to be considered for each split ($m$), and terminal nodesize ($n$). Due to computational complexity, a single 10-fold cross validation was performed with forests consisting of 100 trees. This was done using a version of the feature matrix that included 95 predictor variables, with ordinal variables treated as numeric. The following table gives cross-validation error for different combinations of $P$ and $m$, when $n$ is held at its optimal (and also default) value of 5. 
+We attempted to improve performance by using a 2-step process suggested by @breiman in situations where there are a large number of predictor variables. First a random forest is grown using all predictors, and variable importance scores are calculated. A subset of the most important predictors is then used to grow a second random forest, from which predictions are made. Cross-validation was used to determine the size of this subset, (denoted P), along with the proportion of these variables to be considered for each split ($m$), and terminal nodesize ($n$). Due to computational complexity, a single 10-fold cross validation was performed with forests consisting of 100 trees. This was done using a version of the feature matrix that included 95 predictor variables, with ordinal variables treated as numeric. The following table gives cross-validation error for different combinations of $P$ and $m$, when $n$ is held at its optimal (and also default) value of 5.
 
 | P $\backslash$ m |     0.3   |    0.4    |    0.5    |    0.6    |    0.7   | 
 | ------------     | ----------|---------- | ----------|---------- |-----------|
@@ -107,30 +167,21 @@ There is some sign that using 65 of the original 95 predictors and then consider
 
 
 # Model Ensembling and Stacking  
-After tuning process, we obtained the predictions from four methods: XGBoost, Elastic Net, Partial Least Square, and Random Forests.  Among the four methods, XGBoost has the smallest cross-validation RMSE and the best Kaggle public score. Although each of these methods has been tuned to attain its minimal cross-validation error, we can still improve the prediction performance by stacking/ensembling them. That's because each model may capture a different aspect of the data, and different models perform best on different subsets of data. For instance, one model may always under-estimate the price of one specific type of house while the other model may over-estimate; so we may improve the prediction by averaging them. 
+After performing the tuning process, we obtained the predictions from four methods: XGBoost, elastic net, partial least square, and random forests.  Among the four methods, XGBoost had the smallest cross-validation RMSE and the best Kaggle public score. Although each of these methods has been tuned to attain its minimal cross-validation error, we can still improve the prediction performance by stacking/ensembling them. This is possible because each model may capture a different aspect of the data, and different models perform best on different subsets of data. For instance, one model may always underestimate the price of one specific type of house while the other model may overestimate; so we may improve the prediction by averaging them. 
 
-We tried four methods for stacking: a simple weighted linear combination, adding other methods' predictions into feature matrix, stacking by Lasso regression, and the \texttt{caretEnsemble} package. The last two methods were eventually chosen for Kaggle submission, as they have better Kaggle public scores. Non-linear ensembling method is not considered here. 
+We tried four methods for stacking: a simple weighted linear combination, adding other methods' predictions into feature matrix, stacking using the lasso, and the \texttt{caretEnsemble} package for \texttt{R}. The predictions produced by the later two methods were eventually chosen to be our official submissions. We preferred them over the other two stacking methods because the weights on the predictors were estimated from the data, not arbitrarily chosen. We did not consider any nonlinear combinations of the predictors. 
 
-Random Forest predictions were excluded in model stacking for two reasons. One is that Random Forest has the largest CV RMSE among the four methods and doesn't perform well in Kaggle Public Score. The other reason is that Random Forest and tree-based XGBoost are both built by regression trees in this problem, so we suspect that their predictions may be highly correlated.
+Random forest predictions were excluded in model stacking for two reasons. First, random forests produced the largest cross-validation RMSE among the four methods. The other reason is that random forests and tree-based XGBoost are both built by regression trees in this problem, so we suspect that their predictions may be highly correlated and thus using both in stacking would be somewhat redundant.
 
-Lasso regression was applied to find a set of approriate linear coefficients for stacking. Assume that $y_{i}$ is the true $i$-th observation in the training dataset, and  $\hat{y}_{i,\text{xgb}}$, $\hat{y}_{i,\text{pls}}$ and $\hat{y}_{i,\text{elastic}}$ are the corresponding predictions of XGBoost, PLS and Elastic Net. The solution of the following optimization problem was used for stacking:
-$$  \sum_{i=1}^{n}(y_{i}-\beta_{0}-\beta_{1}\hat{y}_{i,\text{xgb}}-\beta_{2}\hat{y}_{i,\text{pls}}-\beta_{3}\hat{y}_{i,\text{elastic}})^{2}+\lambda\sum_{j=1}^{3}|\beta_{j}|.$$
-The estimated coefficients are $\hat{\beta}_{0} = 0.2099595$, $\hat{\beta}_{1} = 0.2479862$, $\hat{\beta}_{2} = 0.5016328$ and $\hat{\beta}_{3} = 0.2329145$.
+Lasso regression was applied to find a set of approriate linear coefficients for stacking. Assume that $y_{i}$ is the $i$-th case in the training dataset, and $\hat{y}_{i,\text{xgb}}$, $\hat{y}_{i,\text{pls}}$ and $\hat{y}_{i,\text{elastic}}$ are the corresponding predictions of XGBoost, partial least squares, and elastic net. The solution of the following optimization problem was used for stacking:
+$$  \sum_{i=1}^{n}(y_{i}-\beta_{0}-\beta_{1}\hat{y}_{i,\text{xgb}}-\beta_{2}\hat{y}_{i,\text{pls}}-\beta_{3}\hat{y}_{i,\text{elastic}})^{2}+\lambda\sum_{j=1}^{3}|\beta_{j}|,$$
+where $\lambda$ was selected using cross-validation (10-fold, repeated 10 times).
+The resulting final predictor produced by the lasso was of the form $0.0312 + 0.5016 \hat{f}_\text{xgb} + 0.2480 \hat{y}_\text{pls} + 0.2329 \hat{y}_\text{elastic}$. Since this cross-validation prodecure did not include producing the individual predictors, we do not have a valid cross-validation error. The public Kaggle score for this predictor was 0.11774.
 
-The \texttt{caretEnsemble} package for \texttt{R} performs cross-validation to combine predictors using linear regression. For each cross-validation training set, it fits the individual models then takes the resulting predictors and fits a linear model to them. Tuning parameters are selected via this process. We decided to use the elastic net, partial least squares, and XGBoost methods for stacking based on their favorable predictive performance. Due to time constraints, we did not include interactions or quadratic terms for the elastic net, nor did we fully search over possible tuning parameters. In fact, we held tuning parameters constant for XGBoost as it was the most computationally intensive method.  For partial least squares, we only considered the tuning parameter ranging from one to ten, and for the elastic net, we only searched for $\alpha \in (0, 0.3)$ and $\lambda \in (0.001, 0.091)$. We used 10-fold cross-validation repeated 10 times, and did not omit any training cases. The final predictor produced by \texttt{caretEnsemble} was of the form $-0.4946 + 0.4952 \hat{f}_\text{elastic net} + 0.2795 \hat{f}_\text{partial least squares} + 0.2726 \hat{f}_\text{XGBoost}$, where $\hat{f}_\cdot$ is the predictor from the corresponding individual method.
-
-
-|   Method                                | CV RMSE | Kaggle Public Score  | Kaggle Private Score
-| --------------------------------------- | ----------------------|-------------- |-------------- |
-| Elastic Net                             | 0.13384               | 0.13309       | 0.14449
-| XGBoost                                 | 0.11607               | 0.12362       | 0.12514
-| Random Forest                           | 0.14342               | 0.14174       | 0.13476
-| PLS                                     | 0.12482               | 0.12290       | 0.12654 
-| Caret Ensemble (E.Net, PLS, XGBoost)    | 0.12336               | 0.12284       | 0.12310
-| Lasso Stacking (E.Net, PLS, XGBoost)    | ?                     | 0.11774       | 0.12291
+The \texttt{caretEnsemble} package performs cross-validation to combine predictors using linear regression. For each cross-validation training set, it fits the individual models then takes the resulting predictors and fits a linear model to them. Tuning parameters are selected via this process. Following our previous rationale, we used the elastic net, partial least squares, and XGBoost methods for stacking. Due to time constraints, we did not include interactions or quadratic terms for the elastic net, nor did we fully search over all possible tuning parameters. In fact, we held tuning parameters constant for XGBoost as it was the most computationally intensive method.  For partial least squares, we only considered the tuning parameter ranging from one to ten, and for the elastic net, we only searched for $\alpha \in \{0, 0.3\}$ and $\lambda \in \{0.001, 0.091\}$. We used 10-fold cross-validation repeated 10 times, and did not omit any training cases. The final predictor produced by \texttt{caretEnsemble} was of the form $-0.4946 + 0.2726 \hat{y}_\text{xbg} + 0.2795 \hat{y}_\text{pls} +  0.4952 \hat{y}_\text{elastic}$ and had a cross-validation error of 0.12336 and a public Kaggle score of 0.12284.
 
 
-# Summary
+# Summary and Conclusions
 
 Our two official submissions reflect a combination of our desire to stack predictions in an honest, cross-validation based manner with our hope of obtaining the best score possible. Because caret ensemble's stacking is guided by cross-validation, it serves as a reliable gauge of predictive performance. The lasso-based stacking procedure discussed in the previous section resulted in predictions that ranked considerably higher on Kaggle's leaderboard. We were not able to perform legitimate cross-validation for the lasso predictions due to time and computational complexity. 
 
@@ -145,4 +196,17 @@ Ultimately, we were able to produce two official sets of predictions that were c
 
 #Appendix
 <!-- Dr. Vardeman ask us to add Kaggle score tables as an appendix -->
+Table 1: Cross-validation (10-fold, repeated 10 times) RMSE (root mean square error, based on the log Sale Price) and Kaggle scores for the four individual prediction methods we considered as well as the two stacking methods used for our final submissions. 
 
+|   Method                                | CV RMSE | Kaggle Public Score  | Kaggle Private Score
+| --------------------------------------- | ----------------------|-------------- |-------------- |
+| Elastic Net                             | 0.13384               | 0.13309       | 0.14449
+| XGBoost                                 | 0.11607               | 0.12362       | 0.12514
+| Random Forest                           | 0.14342               | 0.14174       | 0.13476
+| PLS                                     | 0.12482               | 0.12290       | 0.12654 
+| Caret Ensemble (E.Net, PLS, XGBoost)    | 0.12336               | 0.12284       | 0.12310
+| Lasso Stacking (E.Net, PLS, XGBoost)    | ?                     | 0.11774       | 0.12291
+
+
+#References
+\setlength\parindent{0pt}
